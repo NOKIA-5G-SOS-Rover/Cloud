@@ -8,7 +8,7 @@ builder.Services.AddControllers();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddDbContext<AppDatabase>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseMySql(
     connectionString,
@@ -37,15 +37,36 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDatabase>();
-    dbContext.Database.Migrate(); //la pornire API-ul să aplice automat migrations și să creeze tabelele în MySQL dacă acestea nu există
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    var migrated = false;
+    var retries = 0;
+
+    while (!migrated && retries < 10)
+    {
+        try
+        {
+            dbContext.Database.Migrate();
+            migrated = true;
+        }
+        catch
+        {
+            retries++;
+            Thread.Sleep(3000);
+        }
+    }
+
+    if (!migrated)
+    {
+        throw new Exception("Database migration failed after multiple retries.");
+    }
 }
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("Frontend");
-
+app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<DashboardHub>("/hub/dashboard");
 

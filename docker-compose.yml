@@ -1,34 +1,13 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: rover-mysql
-    environment:
-      MYSQL_DATABASE: roverdb
-      MYSQL_USER: rover
-      MYSQL_PASSWORD: roverpass
-      MYSQL_ROOT_PASSWORD: rootpass
-    ports:
-      - "3307:3306"
-    volumes:
-      - rover_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-urover", "-proverpass"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: rover-api
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
-      ConnectionStrings__DefaultConnection: "Server=mysql;Port=3306;Database=roverdb;User=rover;Password=roverpass;"
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3306;Database=roverdb;User=rover;Password=roverpass;"
     ports:
       - "8080:8080"
-
-volumes:
-  rover_mysql_data:
+    volumes:
+      - ./backend/wwwroot/uploads:/app/wwwroot/uploads

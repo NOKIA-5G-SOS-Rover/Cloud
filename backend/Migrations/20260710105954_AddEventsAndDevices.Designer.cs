@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using backend.Data;
 
@@ -11,9 +12,11 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDatabaseModelSnapshot : ModelSnapshot
+    [Migration("20260710105954_AddEventsAndDevices")]
+    partial class AddEventsAndDevices
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,32 +24,6 @@ namespace backend.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
-
-            modelBuilder.Entity("backend.Models.Device", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<double>("BatteryLevel")
-                        .HasColumnType("double");
-
-                    b.Property<string>("RoverId")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<double>("SignalStrength")
-                        .HasColumnType("double");
-
-                    b.Property<DateTimeOffset>("Timestamp")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Devices");
-                });
 
             modelBuilder.Entity("backend.Models.Event", b =>
                 {
@@ -71,9 +48,6 @@ namespace backend.Migrations
 
                     b.Property<DateTimeOffset>("DetectedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("longtext");
 
                     b.Property<double>("LocationX")
                         .HasColumnType("double");
@@ -102,6 +76,28 @@ namespace backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Events");
+                });
+
+            modelBuilder.Entity("backend.Models.RoverSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("BatteryLevel")
+                        .HasColumnType("double");
+
+                    b.Property<double>("SignalStrength")
+                        .HasColumnType("double");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RoverSessions");
                 });
 #pragma warning restore 612, 618
         }

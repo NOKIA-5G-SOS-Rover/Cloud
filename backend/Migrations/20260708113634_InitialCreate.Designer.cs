@@ -11,7 +11,7 @@ using backend.Data;
 
 namespace backend.Migrations
 {
-    [DbContext(typeof(AppDatabase))]
+    [DbContext(typeof(AppDbContext))]
     [Migration("20260708113634_InitialCreate")]
     partial class InitialCreate
     {
