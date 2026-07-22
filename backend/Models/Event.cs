@@ -29,4 +29,10 @@ public class Event
     public bool MotorHaltRequested { get; set; }
     
     public string? ImageUrl { get; set; }
+
+    public string InjuryClass { get; set; } = string.Empty;
+
+    public string CameraId { get; set; } = string.Empty;
+
+    public string Status { get; set; } = "NEW";
 }
