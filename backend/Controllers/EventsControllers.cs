@@ -47,7 +47,10 @@ public class EventsController : ControllerBase
     BoundingBoxWidth = dto.BoundingBoxWidth,
     BoundingBoxHeight = dto.BoundingBoxHeight,
     ConfidenceScore = dto.ConfidenceScore,
-    MotorHaltRequested = dto.MotorHaltRequested
+    MotorHaltRequested = dto.MotorHaltRequested,
+    InjuryClass = dto.InjuryClass,
+    CameraId = dto.CameraId,
+    Status = dto.Status
 };
 
         _database.Events.Add(alert);
