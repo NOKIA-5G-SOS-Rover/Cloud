@@ -1,0 +1,36 @@
+name: Build and Push Backend Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    # Permisiuni necesare
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 1. Tragem codul 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Ne logam la ghcr.io folosind token-ul generat automat de GitHub
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Construim si impingem imaginea
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/nokia-5g-sos-rover/rover-backend:latest
