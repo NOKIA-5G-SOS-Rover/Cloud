@@ -94,4 +94,10 @@ app.MapGet("/health", () => Results.Ok(new
     status = "Backend is running"
 }));
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate(); 
+}
+
 app.Run();
