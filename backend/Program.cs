@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -84,7 +85,7 @@ app.UseCors("Frontend");
 app.UseStaticFiles();
 app.UseCors("AllowFrontend");
 app.MapControllers();
-app.MapHub<DashboardHub>("/hub/dashboard");
+app.MapHub<DashboardHub>("/dashboardHub");
 
 app.MapGet("/", () => "Nokia 5G SOS Rover Cloud API is running.");
 
