@@ -11,19 +11,20 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseMySql(
-    connectionString,
-    new MySqlServerVersion(new Version(8, 0, 36))
-);
+        connectionString,
+        new MySqlServerVersion(new Version(8, 0, 36))
+    );
 });
 
 builder.Services.AddSignalR();
 
+// CORS permisiv pentru conexiunea cu Frontend-ul de pe VM
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:3000")
+            .SetIsOriginAllowed(origin => true) 
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -33,8 +34,20 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://92.87.91.146")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // necesar pentru SignalR
+    });
+});
+
 var app = builder.Build();
 
+// Executarea automată a migrărilor la pornire cu sistem de retry
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -48,9 +61,11 @@ using (var scope = app.Services.CreateScope())
         {
             dbContext.Database.Migrate();
             migrated = true;
+            Console.WriteLine("Baza de date MySQL a fost migrata cu succes!");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Eroare la migrare MySQL (incercarea {retries + 1}): {ex.Message}");
             retries++;
             Thread.Sleep(3000);
         }
@@ -67,6 +82,7 @@ app.UseSwaggerUI();
 
 app.UseCors("Frontend");
 app.UseStaticFiles();
+app.UseCors("AllowFrontend");
 app.MapControllers();
 app.MapHub<DashboardHub>("/hub/dashboard");
 
@@ -77,9 +93,4 @@ app.MapGet("/health", () => Results.Ok(new
     status = "Backend is running"
 }));
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.Migrate();
-}
 app.Run();
