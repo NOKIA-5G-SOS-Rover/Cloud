@@ -3,11 +3,15 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+
     container_name: rover-api
+
     environment:
       ASPNETCORE_URLS: "http://+:8080"
-      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3306;Database=roverdb;User=rover;Password=roverpass;"
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3306;Database=RoverSOSDb;User=rover_admin;Password=SuperSecretPassword123!;"
+
     ports:
       - "8080:8080"
+
     volumes:
       - ./backend/wwwroot/uploads:/app/wwwroot/uploads
