@@ -57,6 +57,7 @@ using (var scope = app.Services.CreateScope())
         {
             dbContext.Database.Migrate();
             migrated = true;
+            Console.WriteLine("Baza de date MySQL a fost migrata cu succes!");
         }
         catch (Exception exception)
         {

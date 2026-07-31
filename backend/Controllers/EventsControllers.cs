@@ -137,4 +137,29 @@ public async Task<ActionResult> UploadEventImage(int id, IFormFile image)
         imageUrl = foundEvent.ImageUrl
     });
 }
+[HttpPut("{id}/status")]
+    public async Task<ActionResult> UpdateEventStatus(int id, [FromBody] UpdateEventStatusDto dto)
+    {
+        var foundEvent = await _database.Events.FindAsync(id);
+
+        if (foundEvent == null)
+        {
+            return NotFound(new { message = "Event not found." });
+        }
+
+        // Actualizam statusul în baza de date
+        foundEvent.Status = dto.Status;
+        await _database.SaveChangesAsync();
+
+        // Optional: se poate emite un eveniment prin SignalR aici dacă vrei ca toți 
+        // ceilalti operatori conectati sa vada schimbarea de status live, fara refresh
+        // await _hubContext.Clients.All.SendAsync("StatusUpdated", id, dto.Status);
+
+        return Ok(new
+        {
+            message = "Status updated successfully.",
+            eventId = foundEvent.Id,
+            newStatus = foundEvent.Status
+        });
+    }
 }
