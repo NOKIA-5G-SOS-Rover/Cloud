@@ -68,7 +68,7 @@ app.UseSwaggerUI();
 app.UseCors("Frontend");
 app.UseStaticFiles();
 app.MapControllers();
-app.MapHub<DashboardHub>("/hub/dashboard");
+app.MapHub<DashboardHub>("/dashboardHub");
 
 app.MapGet("/", () => "Nokia 5G SOS Rover Cloud API is running.");
 
