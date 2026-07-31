@@ -5,9 +5,11 @@ services:
       dockerfile: Dockerfile
 
     container_name: rover-api
+    restart: unless-stopped
 
     environment:
       ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3306;Database=RoverSOSDb;User=rover_admin;Password=SuperSecretPassword123!;"
 
     ports:

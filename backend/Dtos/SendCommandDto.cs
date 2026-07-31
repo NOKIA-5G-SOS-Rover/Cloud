@@ -14,6 +14,7 @@ public class SendCommandDto
 
     [Range(0, 100)]
     public int? Speed { get; set; }
-
+    
+    [Range(-360, 360)]
     public float? Degrees { get; set; }
 }
