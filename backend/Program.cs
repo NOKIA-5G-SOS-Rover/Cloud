@@ -7,7 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' is missing."
+    );
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -25,7 +29,15 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
     {
         policy
+<<<<<<< HEAD
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://92.87.91.146:5000"
+            )
+=======
             .SetIsOriginAllowed(origin => true) 
+>>>>>>> 51003b771c9460e8af8c79f6f35bb383070d262b
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -51,7 +63,8 @@ var app = builder.Build();
 // Executarea automată a migrărilor la pornire cu sistem de retry
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var dbContext =
+        scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     var migrated = false;
     var retries = 0;
@@ -64,30 +77,52 @@ using (var scope = app.Services.CreateScope())
             migrated = true;
             Console.WriteLine("Baza de date MySQL a fost migrata cu succes!");
         }
+<<<<<<< HEAD
+        catch (Exception exception)
+=======
         catch (Exception ex)
+>>>>>>> 51003b771c9460e8af8c79f6f35bb383070d262b
         {
             Console.WriteLine($"Eroare la migrare MySQL (incercarea {retries + 1}): {ex.Message}");
             retries++;
+
+            Console.WriteLine(
+                $"Database migration attempt {retries} failed: " +
+                exception.Message
+            );
+
             Thread.Sleep(3000);
         }
     }
 
     if (!migrated)
     {
-        throw new Exception("Database migration failed after multiple retries.");
+        throw new Exception(
+            "Database migration failed after multiple retries."
+        );
     }
 }
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseCors("Frontend");
 app.UseStaticFiles();
+<<<<<<< HEAD
+=======
 app.UseCors("AllowFrontend");
 app.MapControllers();
 app.MapHub<DashboardHub>("/dashboardHub");
+>>>>>>> 51003b771c9460e8af8c79f6f35bb383070d262b
 
-app.MapGet("/", () => "Nokia 5G SOS Rover Cloud API is running.");
+app.UseCors("Frontend");
+
+app.MapControllers();
+
+app.MapHub<DashboardHub>("/dashboardHub");
+
+app.MapGet("/", () =>
+    "Nokia 5G SOS Rover Cloud API is running."
+);
 
 app.MapGet("/health", () => Results.Ok(new
 {
