@@ -12,6 +12,19 @@ services:
       ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3306;Database=RoverSOSDb;User=rover_admin;Password=SuperSecretPassword123!;"
 
+      # Where the API pulls each camera feed from. Leave empty to run push-only,
+      # where the rover relay POSTs frames to /stream/cam1/frame instead.
+      # Set these in a .env file next to this compose file, for example:
+      #   CAM1_UPSTREAM_URL=http://host.docker.internal:8081/stream
+      #   CAM2_UPSTREAM_URL=http://host.docker.internal:8082/stream
+      Cameras__Sources__0__UpstreamUrl: "${CAM1_UPSTREAM_URL:-}"
+      Cameras__Sources__1__UpstreamUrl: "${CAM2_UPSTREAM_URL:-}"
+
+    # Lets the container reach camera servers published on the host, including the
+    # sibling containers listening on ports 8081 and 8082.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     ports:
       - "8080:8080"
 

@@ -1,11 +1,32 @@
 using backend.Data;
 using backend.Hubs;
+using backend.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+builder.Services.Configure<CameraStreamOptions>(
+    builder.Configuration.GetSection(CameraStreamOptions.SectionName)
+);
+
+builder.Services.AddSingleton<CameraRegistry>();
+
+builder.Services.AddHttpClient(CameraPullWorker.HttpClientName, client =>
+{
+    // An MJPEG response never completes, so the only useful timeout is on the
+    // initial connect (configured on the handler below).
+    client.Timeout = Timeout.InfiniteTimeSpan;
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    ConnectTimeout = TimeSpan.FromSeconds(5)
+});
+
+builder.Services.AddHostedService<CameraPullWorker>();
+builder.Services.AddHostedService<CameraStatusNotifier>();
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
