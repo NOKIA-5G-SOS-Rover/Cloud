@@ -6,7 +6,7 @@ namespace backend.Services;
 /// Pulls JPEG frames out of a multipart/x-mixed-replace response body, the format
 /// served by mjpg-streamer, OpenCV/Flask camera servers and most IP cameras.
 /// </summary>
-internal sealed class MjpegStreamReader
+internal sealed class  MjpegStreamReader
 {
     private static readonly byte[] HeaderTerminator = Encoding.ASCII.GetBytes("\r\n\r\n");
 

@@ -9,7 +9,6 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
 builder.Services.Configure<CameraStreamOptions>(
-    builder.Configuration.GetSection(CameraStreamOptions.SectionName)
 );
 
 builder.Services.AddSingleton<CameraRegistry>();
