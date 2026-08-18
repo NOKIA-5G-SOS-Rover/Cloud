@@ -17,14 +17,24 @@ public class CommandsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult> SendCommand(SendCommandDto dto)
+    public async Task<ActionResult> SendCommand(
+        [FromBody] SendCommandDto dto,
+        CancellationToken cancellationToken)
     {
-        await _hubContext.Clients.Group($"rover-{dto.RoverId}")
-            .SendAsync("ReceiveCommand", dto);
+        dto.RoverId = dto.RoverId.Trim();
+        dto.Command = dto.Command.Trim().ToUpperInvariant();
 
-        return Ok(new
+        await _hubContext.Clients
+            .Group($"rover-{dto.RoverId}")
+            .SendAsync(
+                "ReceiveCommand",
+                dto,
+                cancellationToken
+            );
+
+        return Accepted(new
         {
-            message = "Command sent to robot.",
+            message = "Command published to rover.",
             command = dto
         });
     }
