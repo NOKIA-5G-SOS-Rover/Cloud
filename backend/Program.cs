@@ -1,10 +1,11 @@
 using backend.Data;
 using backend.Hubs;
-using backend.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
 using backend.Middleware;
+using backend.Services;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,20 +18,20 @@ builder.Services.Configure<CameraStreamOptions>(
 
 builder.Services.AddSingleton<CameraRegistry>();
 
-builder.Services.AddHttpClient(CameraPullWorker.HttpClientName, client =>
-{
-    // An MJPEG response never completes, so the only useful timeout is on the
-    // initial connect (configured on the handler below).
-    client.Timeout = Timeout.InfiniteTimeSpan;
-})
-.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-{
-    ConnectTimeout = TimeSpan.FromSeconds(5)
-});
+builder.Services
+    .AddHttpClient(CameraPullWorker.HttpClientName, client =>
+    {
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    })
+    .ConfigurePrimaryHttpMessageHandler(() =>
+        new SocketsHttpHandler
+        {
+            ConnectTimeout = TimeSpan.FromSeconds(5)
+        }
+    );
 
 builder.Services.AddHostedService<CameraPullWorker>();
 builder.Services.AddHostedService<CameraStatusNotifier>();
-
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
@@ -50,8 +51,8 @@ builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<RoverControlService>();
 builder.Services.AddScoped<AuditService>();
-builder.Services.AddCors(options =>
 
+builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
@@ -69,7 +70,32 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition(
+        "SessionId",
+        new OpenApiSecurityScheme
+        {
+            Name = "X-Session-Id",
+            Type = SecuritySchemeType.ApiKey,
+            In = ParameterLocation.Header,
+            Description =
+                "Enter the Session ID received from /api/Auth/login"
+        }
+    );
+
+    options.AddSecurityRequirement(document =>
+        new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference(
+                "SessionId",
+                document
+            )] = []
+        }
+    );
+});
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode =
@@ -91,25 +117,23 @@ builder.Services.AddRateLimiter(options =>
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 5,
-
-                        Window =
-                            TimeSpan.FromMinutes(1),
-
+                        Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
-
                         QueueProcessingOrder =
                             QueueProcessingOrder.OldestFirst
-                    });
-        });
+                    }
+                );
+        }
+    );
 });
 
 var app = builder.Build();
 
-// Aplicarea automată a migrărilor, cu maximum 10 încercări
 using (var scope = app.Services.CreateScope())
 {
     var dbContext =
-        scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        scope.ServiceProvider
+            .GetRequiredService<AppDbContext>();
 
     var migrated = false;
     var retries = 0;
@@ -119,10 +143,11 @@ using (var scope = app.Services.CreateScope())
         try
         {
             dbContext.Database.Migrate();
+
             migrated = true;
 
             Console.WriteLine(
-                "Baza de date MySQL a fost migrată cu succes!"
+                "Baza de date MySQL a fost migrata cu succes!"
             );
         }
         catch (Exception exception)
@@ -130,7 +155,7 @@ using (var scope = app.Services.CreateScope())
             retries++;
 
             Console.WriteLine(
-                $"Eroare la migrarea MySQL, încercarea {retries}: " +
+                $"Eroare la migrarea MySQL, incercarea {retries}: " +
                 exception.Message
             );
 
@@ -162,9 +187,6 @@ app.UseMiddleware<SessionMiddleware>();
 
 app.MapControllers();
 
-
-app.MapControllers();
-
 app.MapHub<DashboardHub>("/dashboardHub");
 
 app.MapGet("/", () =>
@@ -181,13 +203,11 @@ app.MapGet(
         {
             var databaseConnected =
                 await dbContext.Database
-                    .CanConnectAsync(
-                        cancellationToken);
+                    .CanConnectAsync(cancellationToken);
 
             var pendingMigrations =
                 await dbContext.Database
-                    .GetPendingMigrationsAsync(
-                        cancellationToken);
+                    .GetPendingMigrationsAsync(cancellationToken);
 
             var response = new
             {
@@ -215,7 +235,8 @@ app.MapGet(
             {
                 return Results.Json(
                     response,
-                    statusCode: 503
+                    statusCode:
+                        StatusCodes.Status503ServiceUnavailable
                 );
             }
 
@@ -227,15 +248,20 @@ app.MapGet(
                 new
                 {
                     status = "Unhealthy",
+
                     backend = "Running",
+
                     database = new
                     {
                         connected = false
                     },
+
                     timestamp =
                         DateTime.UtcNow
                 },
-                statusCode: 503
+
+                statusCode:
+                    StatusCodes.Status503ServiceUnavailable
             );
         }
     }
