@@ -148,7 +148,7 @@ using (var scope = app.Services.CreateScope())
 
             Console.WriteLine(
                 "Baza de date MySQL a fost migrata cu succes!"
-            );
+            );//logger.LogInformation("Database migration completed successfully.");
         }
         catch (Exception exception)
         {
@@ -184,6 +184,8 @@ app.UseCors("Frontend");
 app.UseRateLimiter();
 
 app.UseMiddleware<SessionMiddleware>();
+
+app.UseMiddleware<DatabaseMigrationMiddleware>();
 
 app.MapControllers();
 
