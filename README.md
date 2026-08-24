@@ -1,4 +1,4 @@
----
+
 
 # NOKIA 5G SOS Rover - Cloud Infrastructure & Backend API
 
@@ -20,7 +20,7 @@ The backend handles SOS events, authentication, telemetry, camera streams, rover
 * **Docker & Docker Compose:** Containerization and service orchestration.
 * **GitHub Actions:** Automated CI/CD and container image publishing.
 
----
+
 
 ## Project Structure
 
