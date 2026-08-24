@@ -28,6 +28,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./backend/Dockerfile
+          file: ./Dockerfile
           push: true
           tags: ghcr.io/nokia-5g-sos-rover/rover-backend:latest
