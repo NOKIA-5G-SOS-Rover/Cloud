@@ -82,6 +82,28 @@ public class AuthController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        _context.UserPermissions.AddRange(
+            new UserPermission
+            {
+                UserId = user.Id,
+                Permission = Permissions.ViewDashboard,
+                GrantedByAdminId = user.Id
+            },
+            new UserPermission
+            {
+                UserId = user.Id,
+                Permission = Permissions.ViewCamera,
+                GrantedByAdminId = user.Id
+            },
+            new UserPermission
+            {
+                UserId = user.Id,
+                Permission = Permissions.ViewEvents,
+                GrantedByAdminId = user.Id
+            });
+
+        await _context.SaveChangesAsync();
+
         await _auditService.LogAsync(
             user.Id,
             user.Username,
