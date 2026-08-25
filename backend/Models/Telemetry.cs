@@ -11,4 +11,8 @@ public class Telemetry
     public double BatteryLevel { get; set; }
 
     public double? SignalStrength { get; set; }
+
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
 }

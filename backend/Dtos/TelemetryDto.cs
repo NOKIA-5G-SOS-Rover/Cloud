@@ -7,4 +7,8 @@ public class TelemetryDto
     public double Battery { get; set; }
 
     public double? SignalStrength { get; set; }
+
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
 }
