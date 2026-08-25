@@ -85,7 +85,8 @@ public class CommandsController : ControllerBase
 
         dto.Command =
             dto.Command
-                .Trim();
+                .Trim()
+                .ToUpperInvariant();
 
         await _hubContext.Clients
             .Group($"rover-{dto.RoverId}")
