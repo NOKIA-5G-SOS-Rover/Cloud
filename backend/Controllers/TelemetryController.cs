@@ -44,21 +44,46 @@ public class TelemetryController : ControllerBase
             });
         }
 
+        if (dto.Latitude.HasValue &&
+            (dto.Latitude.Value < -90 ||
+             dto.Latitude.Value > 90))
+        {
+            return BadRequest(new
+            {
+                message = "Latitude must be between -90 and 90."
+            });
+        }
+
+        if (dto.Longitude.HasValue &&
+            (dto.Longitude.Value < -180 ||
+             dto.Longitude.Value > 180))
+        {
+            return BadRequest(new
+            {
+                message = "Longitude must be between -180 and 180."
+            });
+        }
+
         var telemetry = new Telemetry
         {
             RoverId = dto.RoverId.Trim(),
             Timestamp = DateTimeOffset.UtcNow,
             BatteryLevel = dto.Battery,
-            SignalStrength = dto.SignalStrength
+            SignalStrength = dto.SignalStrength,
+            Latitude = dto.Latitude,
+            Longitude = dto.Longitude
         };
 
         _database.Telemetries.Add(telemetry);
 
         await _database.SaveChangesAsync(
-            cancellationToken);
+            cancellationToken
+        );
 
+        // Telemetry merge către dashboard,
+        // NU înapoi către rover.
         await _hubContext.Clients
-            .Group($"rover-{telemetry.RoverId}")
+            .Group(DashboardHub.DashboardGroup)
             .SendAsync(
                 "ReceiveTelemetry",
                 telemetry,
@@ -90,14 +115,14 @@ public class TelemetryController : ControllerBase
             .OrderByDescending(t =>
                 t.Timestamp)
             .FirstOrDefaultAsync(
-                cancellationToken);
+                cancellationToken
+            );
 
         if (telemetry == null)
         {
             return NotFound(new
             {
-                message =
-                    "No telemetry found for this rover."
+                message = "No telemetry found for this rover."
             });
         }
 
@@ -119,10 +144,14 @@ public class TelemetryController : ControllerBase
         }
 
         if (take < 1)
+        {
             take = 1;
+        }
 
         if (take > 500)
+        {
             take = 500;
+        }
 
         var normalizedRoverId = roverId.Trim();
 
@@ -134,7 +163,8 @@ public class TelemetryController : ControllerBase
                 t.Timestamp)
             .Take(take)
             .ToListAsync(
-                cancellationToken);
+                cancellationToken
+            );
 
         return Ok(telemetry);
     }
