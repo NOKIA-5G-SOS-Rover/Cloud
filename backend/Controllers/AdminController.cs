@@ -338,6 +338,8 @@ public class AdminController : ControllerBase
             "respond-to-alerts" => Permissions.UpdateEvents,
             "manual-rover-control" => Permissions.ControlRover,
             "motor-power-controls" => Permissions.EmergencyStop,
+            "access-admin" => Roles.Admin,
+            "change-operating-mode" => "ChangeOperatingMode",
             _ => dto.Permission
         };
 
