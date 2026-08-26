@@ -2,12 +2,14 @@ using backend.Constants;
 using backend.Data;
 using backend.Dtos;
 using backend.Extensions;
+using backend.Hubs;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-namespace backend.Controllers;
 
+namespace backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -17,17 +19,20 @@ public class AdminController : ControllerBase
     private readonly PermissionService _permissionService;
     private readonly SessionService _sessionService;
     private readonly AuditService _auditService;
+    private readonly IHubContext<DashboardHub> _hubContext;
 
     public AdminController(
         AppDbContext context,
         PermissionService permissionService,
         SessionService sessionService,
-        AuditService auditService)
+        AuditService auditService,
+        IHubContext<DashboardHub> hubContext)
     {
         _context = context;
         _permissionService = permissionService;
         _sessionService = sessionService;
         _auditService = auditService;
+        _hubContext = hubContext;
     }
 
     private IActionResult? CheckAdmin()
@@ -350,6 +355,15 @@ public class AdminController : ControllerBase
             $"Granted {dto.Permission} to {targetUser.Username}."
         );
 
+        // Broadcast permission change in real-time via SignalR
+        var currentPermissions = await _permissionService.GetPermissionsAsync(userId);
+        await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
+        {
+            id = userId,
+            username = targetUser.Username,
+            permissions = currentPermissions
+        });
+
         return Ok(new
         {
             message =
@@ -420,6 +434,15 @@ public class AdminController : ControllerBase
             $"Removed {permission} from {targetUser.Username}."
         );
 
+        // Broadcast permission change in real-time via SignalR
+        var currentPermissions = await _permissionService.GetPermissionsAsync(userId);
+        await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
+        {
+            id = userId,
+            username = targetUser.Username,
+            permissions = currentPermissions
+        });
+
         return Ok(new
         {
             message =
@@ -469,7 +492,8 @@ public class AdminController : ControllerBase
 
         return Ok(logs);
     }
-     [HttpPost("users")]
+
+    [HttpPost("users")]
     public async Task<IActionResult> CreateUser(CreateAccountDto dto)
     {
         var error = CheckAdmin();
@@ -541,5 +565,4 @@ public class AdminController : ControllerBase
 
         return Ok(new { message = "User deleted successfully." });
     }
-    
 }
