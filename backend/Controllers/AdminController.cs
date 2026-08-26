@@ -329,13 +329,27 @@ public class AdminController : ControllerBase
             });
         }
 
-        if (string.IsNullOrWhiteSpace(dto.Permission) ||
-            !Permissions.All.Contains(dto.Permission))
+        // Map frontend permission keys to backend constant strings
+        var permissionKey = dto.Permission switch
+        {
+            "view-overview" => Permissions.ViewDashboard,
+            "view-cameras" => Permissions.ViewCamera,
+            "view-past-alerts" => Permissions.ViewEvents,
+            "respond-to-alerts" => Permissions.UpdateEvents,
+            "manual-rover-control" => Permissions.ControlRover,
+            "motor-power-controls" => Permissions.EmergencyStop,
+            _ => dto.Permission
+        };
+
+        if (string.IsNullOrWhiteSpace(permissionKey) ||
+            !Permissions.All.Contains(permissionKey))
         {
             return BadRequest(new
             {
                 message =
                     "Invalid permission.",
+
+                received = dto.Permission,
 
                 allowedPermissions =
                     Permissions.All
@@ -345,14 +359,14 @@ public class AdminController : ControllerBase
         await _permissionService
             .GrantPermissionAsync(
                 userId,
-                dto.Permission,
+                permissionKey,
                 admin.Id);
 
         await _auditService.LogAsync(
             admin.Id,
             admin.Username,
             "GRANT_PERMISSION",
-            $"Granted {dto.Permission} to {targetUser.Username}."
+            $"Granted {permissionKey} to {targetUser.Username}."
         );
 
         // Broadcast permission change in real-time via SignalR
@@ -373,7 +387,7 @@ public class AdminController : ControllerBase
                 targetUser.Username,
 
             permission =
-                dto.Permission
+                permissionKey
         });
     }
 
@@ -412,11 +426,23 @@ public class AdminController : ControllerBase
             });
         }
 
+        // Map frontend permission keys to backend constant strings
+        var permissionKey = permission switch
+        {
+            "view-overview" => Permissions.ViewDashboard,
+            "view-cameras" => Permissions.ViewCamera,
+            "view-past-alerts" => Permissions.ViewEvents,
+            "respond-to-alerts" => Permissions.UpdateEvents,
+            "manual-rover-control" => Permissions.ControlRover,
+            "motor-power-controls" => Permissions.EmergencyStop,
+            _ => permission
+        };
+
         var removed =
             await _permissionService
                 .RemovePermissionAsync(
                     userId,
-                    permission);
+                    permissionKey);
 
         if (!removed)
         {
@@ -431,7 +457,7 @@ public class AdminController : ControllerBase
             admin.Id,
             admin.Username,
             "REMOVE_PERMISSION",
-            $"Removed {permission} from {targetUser.Username}."
+            $"Removed {permissionKey} from {targetUser.Username}."
         );
 
         // Broadcast permission change in real-time via SignalR
@@ -522,12 +548,23 @@ public class AdminController : ControllerBase
         {
             foreach (var perm in dto.Permissions)
             {
-                if (Permissions.All.Contains(perm))
+                var mappedPerm = perm switch
+                {
+                    "view-overview" => Permissions.ViewDashboard,
+                    "view-cameras" => Permissions.ViewCamera,
+                    "view-past-alerts" => Permissions.ViewEvents,
+                    "respond-to-alerts" => Permissions.UpdateEvents,
+                    "manual-rover-control" => Permissions.ControlRover,
+                    "motor-power-controls" => Permissions.EmergencyStop,
+                    _ => perm
+                };
+
+                if (Permissions.All.Contains(mappedPerm))
                 {
                     _context.UserPermissions.Add(new UserPermission
                     {
                         UserId = user.Id,
-                        Permission = perm,
+                        Permission = mappedPerm,
                         GrantedByAdminId = admin.Id
                     });
                 }
