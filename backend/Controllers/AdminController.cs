@@ -2,11 +2,12 @@ using backend.Constants;
 using backend.Data;
 using backend.Dtos;
 using backend.Extensions;
+using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
 namespace backend.Controllers;
+
 
 [ApiController]
 [Route("api/[controller]")]
@@ -468,4 +469,77 @@ public class AdminController : ControllerBase
 
         return Ok(logs);
     }
+     [HttpPost("users")]
+    public async Task<IActionResult> CreateUser(CreateAccountDto dto)
+    {
+        var error = CheckAdmin();
+        if (error != null) return error;
+
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
+            return BadRequest(new { message = "Username and password are required." });
+
+        if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
+            return BadRequest(new { message = "Username already exists." });
+
+        var admin = HttpContext.GetCurrentUser()!;
+
+        var user = new User
+        {
+            Username = dto.Username.Trim(),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = Roles.User,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        if (dto.Permissions != null && dto.Permissions.Any())
+        {
+            foreach (var perm in dto.Permissions)
+            {
+                if (Permissions.All.Contains(perm))
+                {
+                    _context.UserPermissions.Add(new UserPermission
+                    {
+                        UserId = user.Id,
+                        Permission = perm,
+                        GrantedByAdminId = admin.Id
+                    });
+                }
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new
+        {
+            id = user.Id, 
+            username = user.Username,
+            role = user.Role,
+            enabled = true,
+            roverIds = new[] { "sanzi" },
+            permissions = dto.Permissions ?? new List<string>(),
+            createdAt = user.CreatedAt,
+            lastLogin = (DateTime?)null
+        });
+    }
+
+    [HttpDelete("users/{userId}")]
+    public async Task<IActionResult> DeleteUser(int userId)
+    {
+        var error = CheckAdmin();
+        if (error != null) return error;
+
+        var targetUser = await _context.Users.FindAsync(userId);
+        if (targetUser == null) return NotFound(new { message = "User not found." });
+
+        if (targetUser.Role == Roles.Admin)
+            return BadRequest(new { message = "Cannot delete the admin account." });
+
+        _context.Users.Remove(targetUser);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "User deleted successfully." });
+    }
+    
 }
