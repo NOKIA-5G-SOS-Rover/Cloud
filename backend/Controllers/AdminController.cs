@@ -225,7 +225,6 @@ public class AdminController : ControllerBase
             });
         }
 
-        // Seniority check: cannot revoke sessions of a senior admin
         if (targetUser.Role == Roles.Admin && targetUser.Id != admin.Id)
         {
             if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
@@ -301,7 +300,6 @@ public class AdminController : ControllerBase
             });
         }
 
-        // Seniority check: You cannot modify permissions of an admin created before you
         if (targetUser.Role == Roles.Admin && targetUser.Id != admin.Id)
         {
             if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
@@ -310,7 +308,6 @@ public class AdminController : ControllerBase
             }
         }
 
-        // Map frontend permission keys to backend constant strings
         var permissionKey = dto.Permission switch
         {
             "view-overview" => Permissions.ViewDashboard,
@@ -319,13 +316,13 @@ public class AdminController : ControllerBase
             "respond-to-alerts" => Permissions.UpdateEvents,
             "manual-rover-control" => Permissions.ControlRover,
             "motor-power-controls" => Permissions.EmergencyStop,
+            "change-operating-mode" => Permissions.ChangeOperatingMode,
             "access-admin" => Roles.Admin,
-            "change-operating-mode" => "ChangeOperatingMode",
             _ => dto.Permission
         };
 
         if (string.IsNullOrWhiteSpace(permissionKey) ||
-            (!Permissions.All.Contains(permissionKey) && permissionKey != Roles.Admin && permissionKey != "ChangeOperatingMode"))
+            (!Permissions.All.Contains(permissionKey) && permissionKey != Roles.Admin))
         {
             return BadRequest(new
             {
@@ -335,7 +332,6 @@ public class AdminController : ControllerBase
             });
         }
 
-        // Promote to Admin
         if (permissionKey == Roles.Admin)
         {
             targetUser.Role = Roles.Admin;
@@ -392,13 +388,11 @@ public class AdminController : ControllerBase
             });
         }
 
-        // Cannot demote/modify yourself
         if (targetUser.Id == admin.Id && permission == "access-admin")
         {
             return BadRequest(new { message = "You cannot revoke your own admin rights." });
         }
 
-        // Seniority check: An admin created after another admin cannot modify or demote the older admin
         if (targetUser.Role == Roles.Admin)
         {
             if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
@@ -407,7 +401,6 @@ public class AdminController : ControllerBase
             }
         }
 
-        // Map frontend permission keys to backend constant strings
         var permissionKey = permission switch
         {
             "view-overview" => Permissions.ViewDashboard,
@@ -416,8 +409,8 @@ public class AdminController : ControllerBase
             "respond-to-alerts" => Permissions.UpdateEvents,
             "manual-rover-control" => Permissions.ControlRover,
             "motor-power-controls" => Permissions.EmergencyStop,
+            "change-operating-mode" => Permissions.ChangeOperatingMode,
             "access-admin" => Roles.Admin,
-            "change-operating-mode" => "ChangeOperatingMode",
             _ => permission
         };
 
@@ -539,10 +532,17 @@ public class AdminController : ControllerBase
                     "respond-to-alerts" => Permissions.UpdateEvents,
                     "manual-rover-control" => Permissions.ControlRover,
                     "motor-power-controls" => Permissions.EmergencyStop,
+                    "change-operating-mode" => Permissions.ChangeOperatingMode,
+                    "access-admin" => Roles.Admin,
                     _ => perm
                 };
 
-                if (Permissions.All.Contains(mappedPerm))
+                if (mappedPerm == Roles.Admin)
+                {
+                    user.Role = Roles.Admin;
+                    await _context.SaveChangesAsync();
+                }
+                else if (Permissions.All.Contains(mappedPerm))
                 {
                     _context.UserPermissions.Add(new UserPermission
                     {
@@ -581,7 +581,6 @@ public class AdminController : ControllerBase
         if (targetUser.Id == admin.Id)
             return BadRequest(new { message = "You cannot delete your own account." });
 
-        // Seniority check: Cannot delete an admin created before you
         if (targetUser.Role == Roles.Admin)
         {
             if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
