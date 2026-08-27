@@ -8,6 +8,8 @@ public static class Permissions
     public const string ViewEvents = "ViewEvents";
     public const string UpdateEvents = "UpdateEvents";
     public const string EmergencyStop = "EmergencyStop";
+    public const string ChangeOperatingMode = "ChangeOperatingMode";
+    public const string AccessAdmin = "AccessAdmin";
 
     public static readonly string[] All =
     {
@@ -16,6 +18,8 @@ public static class Permissions
         ControlRover,
         ViewEvents,
         UpdateEvents,
-        EmergencyStop
+        EmergencyStop,
+        ChangeOperatingMode,
+        AccessAdmin
     };
 }
