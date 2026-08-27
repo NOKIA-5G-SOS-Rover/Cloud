@@ -344,7 +344,7 @@ public class AdminController : ControllerBase
         };
 
         if (string.IsNullOrWhiteSpace(permissionKey) ||
-            !Permissions.All.Contains(permissionKey))
+            (!Permissions.All.Contains(permissionKey) && permissionKey != Roles.Admin && permissionKey != "ChangeOperatingMode"))
         {
             return BadRequest(new
             {
@@ -358,11 +358,20 @@ public class AdminController : ControllerBase
             });
         }
 
-        await _permissionService
-            .GrantPermissionAsync(
-                userId,
-                permissionKey,
-                admin.Id);
+        // If it's the admin role mapping, handle user role promotion instead of permission table lookup
+        if (permissionKey == Roles.Admin)
+        {
+            targetUser.Role = Roles.Admin;
+            await _context.SaveChangesAsync();
+        }
+        else
+        {
+            await _permissionService
+                .GrantPermissionAsync(
+                    userId,
+                    permissionKey,
+                    admin.Id);
+        }
 
         await _auditService.LogAsync(
             admin.Id,
@@ -372,7 +381,7 @@ public class AdminController : ControllerBase
         );
 
         // Broadcast permission change in real-time via SignalR
-        var currentPermissions = await _permissionService.GetPermissionsAsync(userId);
+        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All : await _permissionService.GetPermissionsAsync(userId);
         await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
         {
             id = userId,
@@ -419,7 +428,7 @@ public class AdminController : ControllerBase
             });
         }
 
-        if (targetUser.Role == Roles.Admin)
+        if (targetUser.Role == Roles.Admin && permission != "access-admin")
         {
             return BadRequest(new
             {
@@ -437,14 +446,25 @@ public class AdminController : ControllerBase
             "respond-to-alerts" => Permissions.UpdateEvents,
             "manual-rover-control" => Permissions.ControlRover,
             "motor-power-controls" => Permissions.EmergencyStop,
+            "access-admin" => Roles.Admin,
+            "change-operating-mode" => "ChangeOperatingMode",
             _ => permission
         };
 
-        var removed =
-            await _permissionService
-                .RemovePermissionAsync(
-                    userId,
-                    permissionKey);
+        bool removed = true;
+        if (permissionKey == Roles.Admin)
+        {
+            targetUser.Role = Roles.User;
+            await _context.SaveChangesAsync();
+        }
+        else
+        {
+            removed =
+                await _permissionService
+                    .RemovePermissionAsync(
+                        userId,
+                        permissionKey);
+        }
 
         if (!removed)
         {
@@ -463,7 +483,7 @@ public class AdminController : ControllerBase
         );
 
         // Broadcast permission change in real-time via SignalR
-        var currentPermissions = await _permissionService.GetPermissionsAsync(userId);
+        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All : await _permissionService.GetPermissionsAsync(userId);
         await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
         {
             id = userId,
