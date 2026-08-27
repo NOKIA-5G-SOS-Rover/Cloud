@@ -172,20 +172,16 @@ public class AdminController : ControllerBase
     }
 
     [HttpDelete("sessions/{sessionId}")]
-    public async Task<IActionResult> RevokeSession(
-        int sessionId)
+    public async Task<IActionResult> RevokeSession(int sessionId)
     {
         var error = CheckAdmin();
 
         if (error != null)
             return error;
 
-        var admin =
-            HttpContext.GetCurrentUser()!;
+        var admin = HttpContext.GetCurrentUser()!;
 
-        var session =
-            await _sessionService
-                .RevokeSessionAsync(sessionId);
+        var session = await _sessionService.RevokeSessionAsync(sessionId);
 
         if (session == null)
         {
@@ -204,29 +200,22 @@ public class AdminController : ControllerBase
 
         return Ok(new
         {
-            message =
-                "Session revoked successfully.",
-
-            user =
-                session.User.Username
+            message = "Session revoked successfully.",
+            user = session.User.Username
         });
     }
 
     [HttpDelete("users/{userId}/sessions")]
-    public async Task<IActionResult>
-        RevokeAllUserSessions(int userId)
+    public async Task<IActionResult> RevokeAllUserSessions(int userId)
     {
         var error = CheckAdmin();
 
         if (error != null)
             return error;
 
-        var admin =
-            HttpContext.GetCurrentUser()!;
+        var admin = HttpContext.GetCurrentUser()!;
 
-        var targetUser =
-            await _context.Users
-                .FindAsync(userId);
+        var targetUser = await _context.Users.FindAsync(userId);
 
         if (targetUser == null)
         {
@@ -236,9 +225,16 @@ public class AdminController : ControllerBase
             });
         }
 
-        var revoked =
-            await _sessionService
-                .RevokeAllSessionsForUserAsync(userId);
+        // Seniority check: cannot revoke sessions of a senior admin
+        if (targetUser.Role == Roles.Admin && targetUser.Id != admin.Id)
+        {
+            if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
+            {
+                return StatusCode(403, new { message = "You cannot revoke sessions of an admin created before you." });
+            }
+        }
+
+        var revoked = await _sessionService.RevokeAllSessionsForUserAsync(userId);
 
         await _auditService.LogAsync(
             admin.Id,
@@ -249,29 +245,21 @@ public class AdminController : ControllerBase
 
         return Ok(new
         {
-            message =
-                "User sessions revoked.",
-
-            user =
-                targetUser.Username,
-
-            revokedSessions =
-                revoked
+            message = "User sessions revoked.",
+            user = targetUser.Username,
+            revokedSessions = revoked
         });
     }
 
     [HttpGet("users/{userId}/permissions")]
-    public async Task<IActionResult> GetPermissions(
-        int userId)
+    public async Task<IActionResult> GetPermissions(int userId)
     {
         var error = CheckAdmin();
 
         if (error != null)
             return error;
 
-        var user =
-            await _context.Users
-                .FindAsync(userId);
+        var user = await _context.Users.FindAsync(userId);
 
         if (user == null)
         {
@@ -281,11 +269,9 @@ public class AdminController : ControllerBase
             });
         }
 
-        var permissions =
-            user.Role == Roles.Admin
-                ? Permissions.All.ToList()
-                : await _permissionService
-                    .GetPermissionsAsync(userId);
+        var permissions = user.Role == Roles.Admin
+            ? Permissions.All.ToList()
+            : await _permissionService.GetPermissionsAsync(userId);
 
         return Ok(new
         {
@@ -296,21 +282,16 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("users/{userId}/permissions")]
-    public async Task<IActionResult> GrantPermission(
-        int userId,
-        PermissionDto dto)
+    public async Task<IActionResult> GrantPermission(int userId, PermissionDto dto)
     {
         var error = CheckAdmin();
 
         if (error != null)
             return error;
 
-        var admin =
-            HttpContext.GetCurrentUser()!;
+        var admin = HttpContext.GetCurrentUser()!;
 
-        var targetUser =
-            await _context.Users
-                .FindAsync(userId);
+        var targetUser = await _context.Users.FindAsync(userId);
 
         if (targetUser == null)
         {
@@ -320,13 +301,13 @@ public class AdminController : ControllerBase
             });
         }
 
-        if (targetUser.Role == Roles.Admin)
+        // Seniority check: You cannot modify permissions of an admin created before you
+        if (targetUser.Role == Roles.Admin && targetUser.Id != admin.Id)
         {
-            return BadRequest(new
+            if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
             {
-                message =
-                    "Admin already has all permissions."
-            });
+                return StatusCode(403, new { message = "You cannot modify permissions of an admin created before you." });
+            }
         }
 
         // Map frontend permission keys to backend constant strings
@@ -348,17 +329,13 @@ public class AdminController : ControllerBase
         {
             return BadRequest(new
             {
-                message =
-                    "Invalid permission.",
-
+                message = "Invalid permission.",
                 received = dto.Permission,
-
-                allowedPermissions =
-                    Permissions.All
+                allowedPermissions = Permissions.All
             });
         }
 
-        // If it's the admin role mapping, handle user role promotion instead of permission table lookup
+        // Promote to Admin
         if (permissionKey == Roles.Admin)
         {
             targetUser.Role = Roles.Admin;
@@ -366,11 +343,7 @@ public class AdminController : ControllerBase
         }
         else
         {
-            await _permissionService
-                .GrantPermissionAsync(
-                    userId,
-                    permissionKey,
-                    admin.Id);
+            await _permissionService.GrantPermissionAsync(userId, permissionKey, admin.Id);
         }
 
         await _auditService.LogAsync(
@@ -380,8 +353,10 @@ public class AdminController : ControllerBase
             $"Granted {permissionKey} to {targetUser.Username}."
         );
 
-        // Broadcast permission change in real-time via SignalR
-        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All.ToList() : await _permissionService.GetPermissionsAsync(userId);
+        var currentPermissions = targetUser.Role == Roles.Admin
+            ? Permissions.All.ToList()
+            : await _permissionService.GetPermissionsAsync(userId);
+
         await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
         {
             id = userId,
@@ -391,34 +366,23 @@ public class AdminController : ControllerBase
 
         return Ok(new
         {
-            message =
-                "Permission granted.",
-
-            user =
-                targetUser.Username,
-
-            permission =
-                permissionKey
+            message = "Permission granted.",
+            user = targetUser.Username,
+            permission = permissionKey
         });
     }
 
-    [HttpDelete(
-        "users/{userId}/permissions/{permission}")]
-    public async Task<IActionResult> RemovePermission(
-        int userId,
-        string permission)
+    [HttpDelete("users/{userId}/permissions/{permission}")]
+    public async Task<IActionResult> RemovePermission(int userId, string permission)
     {
         var error = CheckAdmin();
 
         if (error != null)
             return error;
 
-        var admin =
-            HttpContext.GetCurrentUser()!;
+        var admin = HttpContext.GetCurrentUser()!;
 
-        var targetUser =
-            await _context.Users
-                .FindAsync(userId);
+        var targetUser = await _context.Users.FindAsync(userId);
 
         if (targetUser == null)
         {
@@ -428,13 +392,19 @@ public class AdminController : ControllerBase
             });
         }
 
-        if (targetUser.Role == Roles.Admin && permission != "access-admin")
+        // Cannot demote/modify yourself
+        if (targetUser.Id == admin.Id && permission == "access-admin")
         {
-            return BadRequest(new
+            return BadRequest(new { message = "You cannot revoke your own admin rights." });
+        }
+
+        // Seniority check: An admin created after another admin cannot modify or demote the older admin
+        if (targetUser.Role == Roles.Admin)
+        {
+            if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
             {
-                message =
-                    "Permissions cannot be removed from an admin."
-            });
+                return StatusCode(403, new { message = "You cannot modify or demote an admin created before you." });
+            }
         }
 
         // Map frontend permission keys to backend constant strings
@@ -459,19 +429,14 @@ public class AdminController : ControllerBase
         }
         else
         {
-            removed =
-                await _permissionService
-                    .RemovePermissionAsync(
-                        userId,
-                        permissionKey);
+            removed = await _permissionService.RemovePermissionAsync(userId, permissionKey);
         }
 
         if (!removed)
         {
             return NotFound(new
             {
-                message =
-                    "Permission not found."
+                message = "Permission not found."
             });
         }
 
@@ -482,8 +447,10 @@ public class AdminController : ControllerBase
             $"Removed {permissionKey} from {targetUser.Username}."
         );
 
-        // Broadcast permission change in real-time via SignalR
-        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All.ToList() : await _permissionService.GetPermissionsAsync(userId);
+        var currentPermissions = targetUser.Role == Roles.Admin
+            ? Permissions.All.ToList()
+            : await _permissionService.GetPermissionsAsync(userId);
+
         await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
         {
             id = userId,
@@ -493,8 +460,7 @@ public class AdminController : ControllerBase
 
         return Ok(new
         {
-            message =
-                "Permission removed."
+            message = "Permission removed."
         });
     }
 
@@ -515,22 +481,17 @@ public class AdminController : ControllerBase
         if (take > 500)
             take = 500;
 
-        var query =
-            _context.AuditLogs.AsQueryable();
+        var query = _context.AuditLogs.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(username))
         {
-            query = query.Where(a =>
-                a.Username == username);
+            query = query.Where(a => a.Username == username);
         }
 
         if (!string.IsNullOrWhiteSpace(action))
         {
-            var normalizedAction =
-                action.Trim().ToUpperInvariant();
-
-            query = query.Where(a =>
-                a.Action == normalizedAction);
+            var normalizedAction = action.Trim().ToUpperInvariant();
+            query = query.Where(a => a.Action == normalizedAction);
         }
 
         var logs = await query
@@ -613,11 +574,21 @@ public class AdminController : ControllerBase
         var error = CheckAdmin();
         if (error != null) return error;
 
+        var admin = HttpContext.GetCurrentUser()!;
         var targetUser = await _context.Users.FindAsync(userId);
         if (targetUser == null) return NotFound(new { message = "User not found." });
 
+        if (targetUser.Id == admin.Id)
+            return BadRequest(new { message = "You cannot delete your own account." });
+
+        // Seniority check: Cannot delete an admin created before you
         if (targetUser.Role == Roles.Admin)
-            return BadRequest(new { message = "Cannot delete the admin account." });
+        {
+            if (targetUser.CreatedAt <= admin.CreatedAt || targetUser.Id < admin.Id)
+            {
+                return StatusCode(403, new { message = "You cannot delete an admin created before you." });
+            }
+        }
 
         _context.Users.Remove(targetUser);
         await _context.SaveChangesAsync();
