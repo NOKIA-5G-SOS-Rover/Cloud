@@ -381,7 +381,7 @@ public class AdminController : ControllerBase
         );
 
         // Broadcast permission change in real-time via SignalR
-        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All : await _permissionService.GetPermissionsAsync(userId);
+        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All.ToList() : await _permissionService.GetPermissionsAsync(userId);
         await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
         {
             id = userId,
@@ -483,7 +483,7 @@ public class AdminController : ControllerBase
         );
 
         // Broadcast permission change in real-time via SignalR
-        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All : await _permissionService.GetPermissionsAsync(userId);
+        var currentPermissions = targetUser.Role == Roles.Admin ? Permissions.All.ToList() : await _permissionService.GetPermissionsAsync(userId);
         await _hubContext.Clients.All.SendAsync("PermissionsUpdated", new
         {
             id = userId,
